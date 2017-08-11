@@ -196,6 +196,7 @@ class ThriftCompactClient(ThriftClient):
 
     @classmethod
     def get_transport_factory(self):
+        from thrift.transport import TTransport
         return TTransport.TFramedTransport
 
 
