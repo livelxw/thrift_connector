@@ -11,7 +11,6 @@ from collections import deque
 
 from .hooks import api_call_context, client_get_hook
 
-
 logger = logging.getLogger(__name__)
 
 SIGNAL_CLOSE_NAME = "close"
@@ -68,7 +67,7 @@ class ThriftBaseClient(object):
     def is_expired(self):
         now = time.time()
         return (self.alive_until and now > self.alive_until and
-                random.random() < (now - self.alive_until)/self.keepalive)
+                random.random() < (now - self.alive_until) / self.keepalive)
 
     def incr_use_count(self):
         self.use_count += 1
@@ -187,6 +186,17 @@ class ThriftClient(ThriftBaseClient):
 
     def get_timeout(self):
         return self.socket._timeout
+
+
+class ThriftCompactClient(ThriftClient):
+    @classmethod
+    def get_protoco_factory(self):
+        from thrift.protocol import TCompactProtocol
+        return TCompactProtocol.TCompactProtocolAccelerated
+
+    @classmethod
+    def get_transport_factory(self):
+        return TTransport.TFramedTransport
 
 
 class ThriftPyBaseClient(ThriftBaseClient):
@@ -330,8 +340,8 @@ class BaseClientPool(object):
 
     def put_back_connection(self, conn):
         assert isinstance(conn, ThriftBaseClient)
-        if self.max_conn > 0 and self.pool_size() < self.max_conn and\
-                conn.pool_generation == self.generation:
+        if self.max_conn > 0 and self.pool_size() < self.max_conn and \
+                        conn.pool_generation == self.generation:
             if self.timeout != conn.get_timeout():
                 conn.set_client_timeout(self.timeout * 1000)
             self.connections.append(conn)
@@ -381,6 +391,7 @@ class BaseClientPool(object):
                 finally:
                     if will_put_back:
                         self.put_back_connection(client)
+
             self.__api_method_cache[name] = method
         return method
 
@@ -460,7 +471,6 @@ class ClientPool(BaseClientPool):
 
 
 class HeartbeatClientPool(ClientPool):
-
     def __init__(self, service, host, port, timeout=30, name=None,
                  raise_empty=False, max_conn=30, connection_class=ThriftClient,
                  keepalive=None, tracking=False, tracker_factory=None,
@@ -488,7 +498,7 @@ class HeartbeatClientPool(ClientPool):
         return self._get_connection()
 
     def maintain_connections(self):
-        sleep_time = max(1, self.timeout-5)
+        sleep_time = max(1, self.timeout - 5)
 
         while True:
             time.sleep(sleep_time)
@@ -499,7 +509,7 @@ class HeartbeatClientPool(ClientPool):
                 if conn is None:
                     break
 
-                if (time.time()-conn.latest_use_time < self.check_interval or
+                if (time.time() - conn.latest_use_time < self.check_interval or
                         conn.test_connection()):
                     self.put_back_connection(conn)
                 else:
